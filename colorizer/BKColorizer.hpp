@@ -227,7 +227,6 @@ public:
                 processedLabelIds.contains(currentLabelId)) {
                 continue;
             }
-            processedLabelIds.append(currentLabelId);
 
             // Cell indices must be recomputed from iteration to iteration 
             // because the new maxflow graph only contains the previously
@@ -246,7 +245,7 @@ public:
 
             // Add edges and set capacities
             visitNonLabeledLeafs(
-                [&maxflowGraph, currentLabelId, K, softScribbleWeight]
+                [&maxflowGraph, currentLabelId, K, softScribbleWeight, &processedLabelIds]
                 (WorkingGridCellType *cell)
                 {
                     const IndexType cellIndex = cell->data().index;
@@ -254,7 +253,9 @@ public:
                     const IntensityType cellIntensity = cell->data().intensity;
 
                     // Connect current node to the source or sink node (data term)
-                    if (cellPreferredLabelId != LabelId_Undefined) {
+                    // if the preferred label is defines and was nor already processed
+                    if (cellPreferredLabelId != LabelId_Undefined &&
+                        !processedLabelIds.contains(cellPreferredLabelId)) {
                         if (cellPreferredLabelId == currentLabelId) {
                             // This node must be connected to the source node
                             maxflowGraph.add_tweights(cellIndex, softScribbleWeight, 0);
@@ -326,6 +327,9 @@ public:
                     return true;
                 }
             );
+
+            // Add the current label id to the list of processed label ids
+            processedLabelIds.append(currentLabelId);
         }
     }
 
