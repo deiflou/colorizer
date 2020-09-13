@@ -23,6 +23,8 @@ Window::Window()
     , m_brushSize(20)
     , m_selectedCell(nullptr)
     , m_selectedColorIndex(0)
+    , m_selectedBackgroundColorIndex(-1)
+    , m_useImplicitScribble(false)
 {
     setupUI();
 }
@@ -97,7 +99,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                             b = QBrush(QColor::fromHsv(0, 0, v));
                         } else {
                             const int index = cell->data().preferredLabelId;
-                            if (index == m_colorizer.backgroundLabelId()) {
+                            if (index == m_selectedBackgroundColorIndex) {
                                 b = QBrush(Qt::FDiagPattern);
                             } else {
                                 if (index >= 0 && index < 128) {
@@ -149,9 +151,9 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                     [&painter, &imagePosition, this](CellType* cell) -> bool
                     {
                         if (cell->data().computedLabelId != ColorizerType::LabelId_Undefined &&
-                            cell->data().computedLabelId != m_colorizer.backgroundLabelId()) {
+                            cell->data().computedLabelId != ColorizerType::LabelId_ImplicitSurrounding) {
                             const int index = cell->data().computedLabelId;
-                            if (index >= 0 && index < 128) {
+                            if (index != m_selectedBackgroundColorIndex && index >= 0 && index < 128 && index) {
                                 QColor c = QColor(the_palette[index][0],
                                                   the_palette[index][1],
                                                   the_palette[index][2]);
@@ -168,9 +170,9 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                     [&painter, &imagePosition, this](CellType* cell) -> bool
                     {
                         if (cell->data().computedLabelId != ColorizerType::LabelId_Undefined &&
-                            cell->data().computedLabelId != m_colorizer.backgroundLabelId()) {
+                            cell->data().computedLabelId != ColorizerType::LabelId_ImplicitSurrounding) {
                             const int index = cell->data().computedLabelId;
-                            if (index >= 0 && index < 128) {
+                            if (index != m_selectedBackgroundColorIndex && index >= 0 && index < 128) {
                                 QColor c = QColor(the_palette[index][0],
                                                   the_palette[index][1],
                                                   the_palette[index][2]);
@@ -273,7 +275,8 @@ bool Window::eventFilter(QObject *o, QEvent *e)
 
                 m_selectedCell = nullptr;
 
-                m_colorizer.colorize();
+                m_colorizer.colorize(m_useImplicitScribble);
+
                 m_widgetContainerImage->update();
             }
 
@@ -318,7 +321,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
 
             m_selectedCell = nullptr;
 
-            m_colorizer.colorize();
+            m_colorizer.colorize(m_useImplicitScribble);
 
             m_widgetContainerImage->update();
 
@@ -344,7 +347,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                     const int yy = y * kPaletteEntrySize;
                     const int halfPaleteEntrySize = kPaletteEntrySize / 2;
 
-                    if (index == m_colorizer.backgroundLabelId()) {
+                    if (index == m_selectedBackgroundColorIndex) {
                         const QRect symbolRect(xx + 2, yy + 2, halfPaleteEntrySize - 2, halfPaleteEntrySize - 2);
                         painter.fillRect(symbolRect.translated(1, 1), Qt::black);
                         painter.fillRect(symbolRect, Qt::green);
@@ -373,10 +376,10 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                 if (me->button() == Qt::LeftButton) {
                     m_selectedColorIndex = index;
                 } else if (me->button() == Qt::RightButton) {
-                    if (index == m_colorizer.backgroundLabelId()) {
-                        m_colorizer.setBackgroundLabelId(ColorizerType::LabelId_Background);
+                    if (index == m_selectedBackgroundColorIndex) {
+                        m_selectedBackgroundColorIndex = -1;
                     } else {
-                        m_colorizer.setBackgroundLabelId(index);
+                        m_selectedBackgroundColorIndex = index;
                     }
                     m_widgetContainerImage->update();
                 }

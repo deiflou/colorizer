@@ -13,24 +13,24 @@
 namespace Colorizer
 {
 
-template <typename ScribbleTypeTP, typename LabelIdTypeTP = short>
+template <typename ScribbleTypeTP>
 class BKColorizer
 {
 public:
     using IndexType = int;
     using ScribbleIndexType = short;
-    using LabelIdType = LabelIdTypeTP;
+    using LabelIdType = short;
     using IntensityType = unsigned char;
     using MaxflowGraphType = Graph<int, int, int>;
 
     enum {
         Index_Undefined = -1,
-        Index_ImplicitBackgroundCell = -2,
+        Index_ImplicitSurrounding = -2,
 
         ScribbleIndex_Undefined = -1,
 
         LabelId_Undefined = -1,
-        LabelId_Background = -2,
+        LabelId_ImplicitSurrounding = -2,
 
         Intensity_Min = 0,
         Intensity_Max = 255
@@ -85,10 +85,10 @@ public:
             }
         }
 
-        m_implicitBackgroundCell = new WorkingGridCellType;
-        m_implicitBackgroundCell->data().index = Index_ImplicitBackgroundCell;
-        m_implicitBackgroundCell->data().preferredLabelId = LabelId_Background;
-        m_implicitBackgroundCell->data().intensity = Intensity_Max;
+        m_implicitSurroundingCell = new WorkingGridCellType;
+        m_implicitSurroundingCell->data().index = Index_ImplicitSurrounding;
+        m_implicitSurroundingCell->data().preferredLabelId = LabelId_ImplicitSurrounding;
+        m_implicitSurroundingCell->data().intensity = Intensity_Max;
     }
 
     BKColorizer(int x, int y, int width, int height, int cellSize, const QVector<InputPoint> & points)
@@ -161,24 +161,6 @@ public:
         insertScribble(index, scribble);
     }
 
-    LabelIdType backgroundLabelId() const
-    {
-        if (isNull()) {
-            return LabelId_Undefined;
-        }
-        
-        return m_implicitBackgroundCell->data().preferredLabelId;
-    }
-
-    void setBackgroundLabelId(LabelIdType newBackgroundLabelId)
-    {
-        if (isNull()) {
-            return;
-        }
-        
-        m_implicitBackgroundCell->data().preferredLabelId = newBackgroundLabelId;
-    }
-
     void updateNeighbors()
     {
         if (isNull()) {
@@ -186,36 +168,47 @@ public:
         }
         
         // We only need to set the top and left neighbors for each cell since the
-        // conections to the bottom/right cells are made by the bottom/right cells
+        // conections to the bottom/right cells are made by the bottom/right cells,
+        // so true is passed
         m_workingGrid.updateNeighbors(true);
     }
 
-    void colorize(bool useImplicitBackgroundScribbleForSuroundingArea = false)
+    void colorize(bool useImplicitScribbleForSuroundingArea = false)
     {
         if (isNull()) {
             return;
         }
         
-        // If there are no scribbles and the implicit background scribble
-        // is used then set the label os all cells to the background label
+        // If there are no scribbles and a implicit surrounding scribble
+        // must be used, then set the label of all cells to
+        // the implicit surrounding label
         if (m_scribbles.isEmpty()) {
-            if (useImplicitBackgroundScribbleForSuroundingArea) {
-                labelAllCellsAsBackground();
+            if (useImplicitScribbleForSuroundingArea) {
+                labelAllCellsAs(LabelId_ImplicitSurrounding);
             }
             return;
         }
 
+        // If there is only one scribble and an implicir surrounding scribble
+        // must not be used, then set the label of all cells to
+        // the label of the unique scribble
+        if (m_scribbles.size() == 1 && !useImplicitScribbleForSuroundingArea) {
+            labelAllCellsAs(m_scribbles[0].labelId());
+            return;
+        }
+
         // Clear the previously computed labeling
-        clearComputedLabeling();
+        labelAllCellsAs(LabelId_Undefined);
 
         // The neighbors for each cell must be updated because the topology of
         // the grid might be changed for example by adding a new scribble.
         updateNeighbors();
 
         QVector<LabelIdType> processedLabelIds;
+
         // Soft scribbles have weight = 5% of K
         // Hard scribbles have weight = 100% of K
-        const int K = m_workingGrid.cellSize() * 2 * (m_workingGrid.rect().width() + m_workingGrid.rect().height());
+        const int K = 2 * (m_workingGrid.rect().width() + m_workingGrid.rect().height());
         const int softScribbleWeight = 5 * K / 100;
         const int hardScribbleWeight = K;
 
@@ -239,7 +232,7 @@ public:
             // Add nodes
             maxflowGraph.add_node(count.first);
             // Add extra node to account for the surrounding area
-            if (useImplicitBackgroundScribbleForSuroundingArea) {
+            if (useImplicitScribbleForSuroundingArea) {
                 maxflowGraph.add_node();
             }
 
@@ -253,15 +246,17 @@ public:
                     const IntensityType cellIntensity = cell->data().intensity;
 
                     // Connect current node to the source or sink node (data term)
-                    // if the preferred label is defines and was nor already processed
+                    // if the preferred label is defined and was not already processed
+                    // The weight is scaled by the number of pixels that would
+                    // fit in the cell
                     if (cellPreferredLabelId != LabelId_Undefined &&
                         !processedLabelIds.contains(cellPreferredLabelId)) {
                         if (cellPreferredLabelId == currentLabelId) {
                             // This node must be connected to the source node
-                            maxflowGraph.add_tweights(cellIndex, softScribbleWeight, 0);
+                            maxflowGraph.add_tweights(cellIndex, softScribbleWeight * cell->size() * cell->size(), 0);
                         } else {
                             // This node must be connected to the sink node
-                            maxflowGraph.add_tweights(cellIndex, 0, softScribbleWeight);
+                            maxflowGraph.add_tweights(cellIndex, 0, softScribbleWeight * cell->size() * cell->size());
                         }
                     }
 
@@ -278,12 +273,16 @@ public:
                         const IndexType neighborCellIndex = neighborCell->data().index;
                         const IntensityType neighborCellIntensity = neighborCell->data().intensity;
                         const int neighborCellEdgeWeight = 1 + K * neighborCellIntensity / Intensity_Max;
-                        const int nPixelsInEdge = qMin(cell->size(), neighborCell->size());
+                        // A cell can be 1 up to "WorkingGRid::cellSize()" pixels wide,
+                        // so the edge weight is scaled by the length of the border
+                        // between the cells to reflect that we are
+                        // cutting though "cellSize()" pixels
+                        const int numberOfPixelsInBorderBetweenCells = qMin(cell->size(), neighborCell->size());
                         maxflowGraph.add_edge(
                             cellIndex,
                             neighborCellIndex,
-                            cellEdgeWeight * nPixelsInEdge,
-                            neighborCellEdgeWeight * nPixelsInEdge
+                            cellEdgeWeight * numberOfPixelsInBorderBetweenCells,
+                            neighborCellEdgeWeight * numberOfPixelsInBorderBetweenCells
                         );
                     }
 
@@ -296,12 +295,16 @@ public:
                         const IndexType neighborCellIndex = neighborCell->data().index;
                         const IntensityType neighborCellIntensity = neighborCell->data().intensity;
                         const int neighborCellEdgeWeight = 1 + K * neighborCellIntensity / Intensity_Max;
-                        const int nPixelsInEdge = qMin(cell->size(), neighborCell->size());
+                        // A cell can be 1 up to "WorkingGRid::cellSize()" pixels wide,
+                        // so the edge weight is scaled by the length of the border
+                        // between the cells to reflect that we are
+                        // cutting though "cellSize()" pixels
+                        const int numberOfPixelsInBorderBetweenCells = qMin(cell->size(), neighborCell->size());
                         maxflowGraph.add_edge(
                             cellIndex,
                             neighborCellIndex,
-                            cellEdgeWeight * nPixelsInEdge,
-                            neighborCellEdgeWeight * nPixelsInEdge
+                            cellEdgeWeight * numberOfPixelsInBorderBetweenCells,
+                            neighborCellEdgeWeight * numberOfPixelsInBorderBetweenCells
                         );
                     }
 
@@ -309,9 +312,38 @@ public:
                 }
             );
 
-            // Connect the surrounding background node to the sink and to the border cells
-            if (useImplicitBackgroundScribbleForSuroundingArea) {
-                maxflowGraph.add_tweights(count.first, 0, hardScribbleWeight);
+            // Connect the implicit surrounding node
+            // to the sink and to the border cells
+            if (useImplicitScribbleForSuroundingArea) {
+                const int implicitSurroundingCellIndex = count.first;
+                const int implicitSurroundingCellEdgeWeight = 1 + K;
+
+                // Make the connection from the implicit surrounding cell to the
+                // sink super strong to reflect that the surroundings extend
+                // infinitelly
+                maxflowGraph.add_tweights(implicitSurroundingCellIndex, 0, std::numeric_limits<int>::max());
+
+                visitNonLabeledBorderLeafs(
+                    [&maxflowGraph, K, implicitSurroundingCellIndex, implicitSurroundingCellEdgeWeight]
+                    (WorkingGridCellType *cell) -> bool
+                    {
+                        const IndexType borderCellIndex = cell->data().index;
+                        const IntensityType borderCellIntensity = cell->data().intensity;
+                        const int borderCellEdgeWeight = 1 + K * borderCellIntensity / Intensity_Max;
+                        // A cell can be 1 up to "WorkingGRid::cellSize()" pixels wide,
+                        // so the edge weight is scaled by the length of the border
+                        // between the cells to reflect that we are
+                        // cutting though "cellSize()" pixels
+                        const int numberOfPixelsInBorderBetweenCells = cell->size();
+                        maxflowGraph.add_edge(
+                            borderCellIndex,
+                            implicitSurroundingCellIndex,
+                            borderCellEdgeWeight * numberOfPixelsInBorderBetweenCells,
+                            implicitSurroundingCellEdgeWeight * numberOfPixelsInBorderBetweenCells
+                        );
+                        return true;
+                    }
+                );
             }
 
             // Compute maxflow
@@ -331,12 +363,24 @@ public:
             // Add the current label id to the list of processed label ids
             processedLabelIds.append(currentLabelId);
         }
+
+        // If there is still any unlabeled cells, then label them
+        // as implicit surrounding if the option was set
+        if (useImplicitScribbleForSuroundingArea) {
+            visitNonLabeledLeafs(
+                [](WorkingGridCellType *cell)
+                {
+                    cell->data().computedLabelId = LabelId_ImplicitSurrounding;
+                    return true;
+                }
+            );
+        }
     }
 
 private:
     ReferenceGridType m_referenceGrid;
     WorkingGridType m_workingGrid;
-    WorkingGridCellType *m_implicitBackgroundCell;
+    WorkingGridCellType *m_implicitSurroundingCell;
     QVector<ScribbleType> m_scribbles;
 
     void clearWorkingGrid(const QRect &rect)
@@ -423,23 +467,12 @@ private:
         addScribblesToWorkingGrid(rect);
     }
 
-    void clearComputedLabeling()
+    void labelAllCellsAs(LabelIdType newLabelId)
     {
         m_workingGrid.visitLeafs(
-            [](WorkingGridCellType *cell) -> bool
+            [newLabelId](WorkingGridCellType *cell) -> bool
             {
-                cell->data().computedLabelId = LabelId_Undefined;
-                return true;
-            }
-        );
-    }
-
-    void labelAllCellsAsBackground()
-    {
-        m_workingGrid.visitLeafs(
-            [this](WorkingGridCellType *cell) -> bool
-            {
-                cell->data().computedLabelId = backgroundLabelId();
+                cell->data().computedLabelId = newLabelId;
                 return true;
             }
         );
@@ -449,6 +482,20 @@ private:
     void visitNonLabeledLeafs(VisitorTypeTP visitor) const
     {
         m_workingGrid.visitLeafs(
+            [visitor](WorkingGridCellType *cell) -> bool
+            {
+                if (cell->data().computedLabelId == LabelId_Undefined) {
+                    return visitor(cell);
+                }
+                return true;
+            }
+        );
+    }
+
+    template <typename VisitorTypeTP>
+    void visitNonLabeledBorderLeafs(VisitorTypeTP visitor) const
+    {
+        m_workingGrid.visitBorderLeafs(
             [visitor](WorkingGridCellType *cell) -> bool
             {
                 if (cell->data().computedLabelId == LabelId_Undefined) {

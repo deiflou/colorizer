@@ -269,6 +269,94 @@ public:
         );
     }
 
+    // Visit all border leaf cells in clockwise direction
+    // starting from the top left one
+    template <typename VisitorTypeTP>
+    void visitBorderLeafs(VisitorTypeTP visitor) const
+    {
+        int index;
+
+        // Top cells
+        for (int x = 0; x < m_widthInCells; ++x) {
+            CellType *topLevelCell = m_cells[x];
+            for (CellType *cell : topLevelCell->topMostLeafs()) {
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+        }
+
+        // Right cells (we must avoid processing again the top right corner cell)
+        index = m_widthInCells - 1;
+        {
+            CellType *topLevelCell = m_cells[index];
+            QVector<CellType*> borderLeafCells = topLevelCell->rightMostLeafs();
+            for (int i = 1; i < borderLeafCells.size(); ++i) {
+                CellType *cell = borderLeafCells[i];
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+            index += m_widthInCells;
+        }
+        for (int y = 1; y < m_heightInCells; ++y, index += m_widthInCells) {
+            CellType *topLevelCell = m_cells[index];
+            for (CellType *cell : topLevelCell->rightMostLeafs()) {
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+        }
+
+        // Bottom cells (we must avoid processing again the bottom right corner cell)
+        index = (m_heightInCells - 1) * m_widthInCells + m_widthInCells - 1;
+        {
+            CellType *topLevelCell = m_cells[index];
+            QVector<CellType*> borderLeafCells = topLevelCell->bottomMostLeafs();
+            for (int i = borderLeafCells.size() - 2; i >= 0; --i) {
+                CellType *cell = borderLeafCells[i];
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+            --index;
+        }
+        for (int x = m_widthInCells - 2; x >= 0; --x, --index) {
+            CellType *topLevelCell = m_cells[index];
+            QVector<CellType*> borderLeafCells = topLevelCell->bottomMostLeafs();
+            for (int i = borderLeafCells.size() - 1; i >= 0; --i) {
+                CellType *cell = borderLeafCells[i];
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+        }
+
+        // Left cells (we must avoid processing again the bottom left corner cell)
+        index = (m_heightInCells - 1) * m_widthInCells;
+        {
+            CellType *topLevelCell = m_cells[index];
+            QVector<CellType*> borderLeafCells = topLevelCell->leftMostLeafs();
+            for (int i = borderLeafCells.size() - 2; i >= 0; --i) {
+                CellType *cell = borderLeafCells[i];
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+            index -= m_widthInCells;;
+        }
+        for (int y = m_heightInCells - 2; y >= 0; --y, index -= m_widthInCells) {
+            CellType *topLevelCell = m_cells[index];
+            QVector<CellType*> borderLeafCells = topLevelCell->leftMostLeafs();
+            for (int i = borderLeafCells.size() - 1; i >= 0; --i) {
+                CellType *cell = borderLeafCells[i];
+                if (!visitor(cell)) {
+                    return;
+                }
+            }
+        }
+    }
+
     int cellSize() const
     {
         return m_cellSize;

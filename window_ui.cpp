@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QComboBox>
 #include <QSlider>
+#include <QCheckBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -54,6 +55,11 @@ void Window::setupUI()
     m_widgetPalette->setFixedSize(16 * kPaletteEntrySize, 8 * kPaletteEntrySize);
     m_widgetPalette->installEventFilter(this);
 
+    QVBoxLayout *layoutOtherOptions= new QVBoxLayout;
+    QFormLayout *layoutOtherOptionsContents = new QFormLayout;
+    QCheckBox *checkBoxUseImplicitScribble = new QCheckBox;
+    checkBoxUseImplicitScribble->setChecked(m_useImplicitScribble);
+
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
         toolsLayout->setContentsMargins(10, 10, 10, 10);
@@ -89,10 +95,19 @@ void Window::setupUI()
                 layoutBrushContents->addRow("Size:", layoutBrushContentsSize);
                 layoutBrushContents->addRow("Color:", m_widgetPalette);
             layoutBrush->addLayout(layoutBrushContents);
+
+            layoutOtherOptions->setContentsMargins(0, 0, 0, 0);
+            layoutOtherOptions->setSpacing(5);
+            layoutOtherOptions->addWidget(new QLabel("Other Options:"));
+                layoutOtherOptionsContents->setContentsMargins(10, 0, 0, 0);
+                layoutOtherOptionsContents->setSpacing(5);
+                layoutOtherOptionsContents->addRow("Use Implicit Surrounding Background Scribble:", checkBoxUseImplicitScribble);
+            layoutOtherOptions->addLayout(layoutOtherOptionsContents);
             
         toolsLayout->addLayout(layoutIO);
         toolsLayout->addLayout(layoutVisualization);
         toolsLayout->addLayout(layoutBrush);
+        toolsLayout->addLayout(layoutOtherOptions);
         toolsLayout->addStretch();
 
     mainLayout->addLayout(toolsLayout);
@@ -115,21 +130,45 @@ void Window::setupUI()
                 return;
             }
 
+            // m_originalImage = i.convertToFormat(QImage::Format_Grayscale8);
+            // m_thresholdImage = Preprocessing::threshold(m_originalImage, 192);
+            // m_skeletonImage = Preprocessing::skeletonChenHsu(m_thresholdImage);
+
+            // QVector<ColorizerType::InputPoint> imagePoints;
+            // for (int y = 0; y < m_skeletonImage.height(); ++y) {
+            //     quint8 *currentPixel = static_cast<quint8*>(m_skeletonImage.scanLine(y));
+            //     for (int x = 0; x < m_skeletonImage.width(); ++x, ++currentPixel) {
+            //         if (*currentPixel == 0) {
+            //             imagePoints.append(
+            //                 ColorizerType::InputPoint{
+            //                     QPoint(x, y),
+            //                     ColorizerType::Intensity_Min
+            //                 }
+            //             );
+            //         }
+            //     }
+            // }
+
             m_originalImage = i.convertToFormat(QImage::Format_Grayscale8);
-            m_thresholdImage = Preprocessing::threshold(m_originalImage, 192);
-            m_skeletonImage = Preprocessing::skeletonChenHsu(m_thresholdImage);
+            m_skeletonImage = QImage(i.width(), i.height(), QImage::Format_Grayscale8);
 
             QVector<ColorizerType::InputPoint> imagePoints;
             for (int y = 0; y < m_skeletonImage.height(); ++y) {
-                quint8 *currentPixel = static_cast<quint8*>(m_skeletonImage.scanLine(y) + 1);
-                for (int x = 0; x < m_skeletonImage.width(); ++x, ++currentPixel) {
-                    if (*currentPixel == 0) {
+                const quint8 *currentPixel = m_originalImage.scanLine(y);
+                quint8 *currentPixel2 = static_cast<quint8*>(m_skeletonImage.scanLine(y));
+                for (int x = 0; x < m_skeletonImage.width(); ++x, ++currentPixel, ++currentPixel2) {
+                    int pixelValue = *currentPixel;
+                    pixelValue = pixelValue * pixelValue / 255;
+                    if (pixelValue < 128) {
+                        *currentPixel2 = static_cast<ColorizerType::IntensityType>(pixelValue);
                         imagePoints.append(
                             ColorizerType::InputPoint{
                                 QPoint(x, y),
-                                ColorizerType::Intensity_Min
+                                static_cast<ColorizerType::IntensityType>(pixelValue)
                             }
                         );
+                    } else {
+                        *currentPixel2 = 255;
                     }
                 }
             }
@@ -166,6 +205,18 @@ void Window::setupUI()
 
             labelBrushSize->setText(QString::number(value) + "px");
             m_brushSize = value;
+        }
+    );
+
+    connect(checkBoxUseImplicitScribble, &QCheckBox::toggled,
+        [this](bool toggled)
+        {
+            if (toggled == m_useImplicitScribble) {
+                return;
+            }
+            m_useImplicitScribble = toggled;
+            m_colorizer.colorize(m_useImplicitScribble);
+            m_widgetContainerImage->update();
         }
     );
 }

@@ -66,6 +66,8 @@ private:
     int m_brushSize;
     CellType *m_selectedCell;
     int m_selectedColorIndex;
+    int m_selectedBackgroundColorIndex;
+    bool m_useImplicitScribble;
 
     void setupUI();
 
