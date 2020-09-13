@@ -3,6 +3,10 @@
 #include <cmath>
 #include <QPainter>
 
+Scribble::Scribble(const QColor & color)
+    : m_color(color)
+{}
+
 QVector<QPoint> Scribble::contourPoints() const
 {
     if (!m_cacheIsValid) {
@@ -11,19 +15,19 @@ QVector<QPoint> Scribble::contourPoints() const
         if (!m_image.isNull()) {
             for (int y = 1; y < m_image.height() - 1; ++y) {
                 const quint8 *pixel = m_image.scanLine(y);
-                for (int x = 0; x < m_image.width() - 1; ++x, ++pixel) {
-                    if (*pixel == 0) {
+                for (int x = 0; x < m_image.width() - 1; ++x, pixel += 4) {
+                    if (pixel[3] == 0) {
                         continue;
                     }
 
-                    if (*(pixel - m_image.bytesPerLine() - 1) == 0 ||
-                        *(pixel - m_image.bytesPerLine() - 0) == 0 ||
-                        *(pixel - m_image.bytesPerLine() + 1) == 0 ||
-                        *(pixel - 1) == 0 ||
-                        *(pixel + 1) == 0 ||
-                        *(pixel + m_image.bytesPerLine() - 1) == 0 ||
-                        *(pixel + m_image.bytesPerLine() - 0) == 0 ||
-                        *(pixel + m_image.bytesPerLine() + 1) == 0) {
+                    if ((pixel - m_image.bytesPerLine() - 4)[3] == 0 ||
+                        (pixel - m_image.bytesPerLine() - 0)[3] == 0 ||
+                        (pixel - m_image.bytesPerLine() + 4)[3] == 0 ||
+                        (pixel - 4)[3] == 0 ||
+                        (pixel + 4)[3] == 0 ||
+                        (pixel + m_image.bytesPerLine() - 4)[3] == 0 ||
+                        (pixel + m_image.bytesPerLine() - 0)[3] == 0 ||
+                        (pixel + m_image.bytesPerLine() + 4)[3] == 0) {
                         m_cachedContourPoints.push_back(QPoint(x + m_imageRect.x(), y + m_imageRect.y()));
                     }
                 } 
@@ -44,7 +48,7 @@ bool Scribble::containsPoint(const QPoint & point) const
     const int x = point.x() - m_imageRect.x();
     const int y = point.y() - m_imageRect.y();
     
-    return *(m_image.constBits() + y * m_image.bytesPerLine() + x) == 255;
+    return (m_image.constBits() + y * m_image.bytesPerLine() + x * 4)[3] == 255;
 }
 
 void Scribble::moveTo(const QPoint & point, int radius)
@@ -74,7 +78,7 @@ void Scribble::lineTo(const QPoint & point, int radius)
     double t = 0.0;
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(Qt::white);
+    painter.setBrush(m_color);
     
     while (t < 1.0) {
         int ri = static_cast<int>(std::round(r));
@@ -125,7 +129,7 @@ void Scribble::resizeImageToContain(const QPoint & point, int radius)
                        radius * 2 + 1);
     QRect rect = startPointRect.united(endPointRect).adjusted(-1, -1, 1, 1).united(m_imageRect);
 
-    QImage img(rect.width(), rect.height(), QImage::Format_Grayscale8);
+    QImage img(rect.width(), rect.height(), QImage::Format_ARGB32);
     img.fill(0);
     QPainter painter(&img);
     painter.drawImage(m_imageRect.topLeft() - rect.topLeft(), m_image);

@@ -59,6 +59,8 @@ void Window::setupUI()
     QFormLayout *layoutOtherOptionsContents = new QFormLayout;
     QCheckBox *checkBoxUseImplicitScribble = new QCheckBox;
     checkBoxUseImplicitScribble->setChecked(m_useImplicitScribble);
+    QCheckBox *checkBoxshowScribbles = new QCheckBox;
+    checkBoxshowScribbles->setChecked(m_showScribbles);
 
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
@@ -102,6 +104,7 @@ void Window::setupUI()
                 layoutOtherOptionsContents->setContentsMargins(10, 0, 0, 0);
                 layoutOtherOptionsContents->setSpacing(5);
                 layoutOtherOptionsContents->addRow("Use Implicit Surrounding Background Scribble:", checkBoxUseImplicitScribble);
+                layoutOtherOptionsContents->addRow("Show Scribbles:", checkBoxshowScribbles);
             layoutOtherOptions->addLayout(layoutOtherOptionsContents);
             
         toolsLayout->addLayout(layoutIO);
@@ -216,6 +219,17 @@ void Window::setupUI()
             }
             m_useImplicitScribble = toggled;
             m_colorizer.colorize(m_useImplicitScribble);
+            m_widgetContainerImage->update();
+        }
+    );
+
+    connect(checkBoxshowScribbles, &QCheckBox::toggled,
+        [this](bool toggled)
+        {
+            if (toggled == m_showScribbles) {
+                return;
+            }
+            m_showScribbles = toggled;
             m_widgetContainerImage->update();
         }
     );

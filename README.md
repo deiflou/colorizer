@@ -26,6 +26,7 @@ Select what and how is displayed.
 
 ### Other Options Section
 * **Use Implicit Surrounding Background Scribble**: If you set this option the effect is as if a transparent background scribble was drawn surrounding the image. This can save you putting a few scribbles used as transparent background
+* **Show Scribbles**: Set if the scribbles should be shown in the *Labeling* and *Composed Image* modes
 
 ### Keys
 

@@ -25,6 +25,7 @@ Window::Window()
     , m_selectedColorIndex(0)
     , m_selectedBackgroundColorIndex(-1)
     , m_useImplicitScribble(false)
+    , m_showScribbles(true)
 {
     setupUI();
 }
@@ -52,8 +53,10 @@ bool Window::eventFilter(QObject *o, QEvent *e)
             painter.save();
             if (m_visualizationMode == VisualizationMode_OriginalImage) {
                 painter.drawImage(imagePosition, m_originalImage);
+                
             } else if (m_visualizationMode == VisualizationMode_Skeleton) {
                 painter.drawImage(imagePosition, m_skeletonImage);
+
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioning) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
                 workingGrid.visitLeafs(
@@ -68,6 +71,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                         return true;
                     }
                 );
+
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioningScribbles) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
@@ -87,6 +91,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                         return true;
                     }
                 );
+
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioningLabels) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
@@ -100,7 +105,10 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                         } else {
                             const int index = cell->data().preferredLabelId;
                             if (index == m_selectedBackgroundColorIndex) {
-                                b = QBrush(Qt::FDiagPattern);
+                                b = QBrush(QColor(the_palette[index][0],
+                                                    the_palette[index][1],
+                                                    the_palette[index][2]),
+                                                    Qt::FDiagPattern);
                             } else {
                                 if (index >= 0 && index < 128) {
                                     b = QBrush(QColor(the_palette[index][0],
@@ -113,6 +121,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                         return true;
                     }
                 );
+
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioningNeighbors) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
@@ -144,11 +153,14 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                         return true;
                     }
                 );
+
             } else if (m_visualizationMode == VisualizationMode_Labeling) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
+                int alpha = m_showScribbles ? 64 : 255;
+
                 workingGrid.visitLeafs(
-                    [&painter, &imagePosition, this](CellType* cell) -> bool
+                    [&painter, &imagePosition, alpha, this](CellType* cell) -> bool
                     {
                         if (cell->data().computedLabelId != ColorizerType::LabelId_Undefined &&
                             cell->data().computedLabelId != ColorizerType::LabelId_ImplicitSurrounding) {
@@ -156,18 +168,29 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                             if (index != m_selectedBackgroundColorIndex && index >= 0 && index < 128 && index) {
                                 QColor c = QColor(the_palette[index][0],
                                                   the_palette[index][1],
-                                                  the_palette[index][2]);
+                                                  the_palette[index][2],
+                                                  alpha);
                                 painter.fillRect(QRectF(cell->rect()).translated(imagePosition), c);
                             }
                         }
                         return true;
                     }
                 );
+
+                if (m_showScribbles) {
+                    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+                    for (const Scribble & scribble : m_scribbles) {
+                        painter.drawImage(QRectF(scribble.rect()).translated(imagePosition), scribble.image());
+                    }
+                }
+
             } else if (m_visualizationMode == VisualizationMode_ComposedImage) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
+                int alpha = m_showScribbles ? 64 : 255;
+                
                 workingGrid.visitLeafs(
-                    [&painter, &imagePosition, this](CellType* cell) -> bool
+                    [&painter, &imagePosition, alpha, this](CellType* cell) -> bool
                     {
                         if (cell->data().computedLabelId != ColorizerType::LabelId_Undefined &&
                             cell->data().computedLabelId != ColorizerType::LabelId_ImplicitSurrounding) {
@@ -175,7 +198,8 @@ bool Window::eventFilter(QObject *o, QEvent *e)
                             if (index != m_selectedBackgroundColorIndex && index >= 0 && index < 128) {
                                 QColor c = QColor(the_palette[index][0],
                                                   the_palette[index][1],
-                                                  the_palette[index][2]);
+                                                  the_palette[index][2],
+                                                  alpha);
                                 painter.fillRect(QRectF(cell->rect()).translated(imagePosition), c);
                             }
                         }
@@ -185,6 +209,13 @@ bool Window::eventFilter(QObject *o, QEvent *e)
 
                 painter.setCompositionMode(QPainter::CompositionMode_Multiply);
                 painter.drawImage(imagePosition, m_originalImage);
+
+                if (m_showScribbles) {
+                    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+                    for (const Scribble & scribble : m_scribbles) {
+                        painter.drawImage(QRectF(scribble.rect()).translated(imagePosition), scribble.image());
+                    }
+                }
             }
             painter.restore();
 
@@ -226,7 +257,11 @@ bool Window::eventFilter(QObject *o, QEvent *e)
             } else if (me->button() == Qt::LeftButton) {
                 const QPoint penPosition = transformPenPosition(me->pos());
 
-                m_scribbles.push_back(Scribble());
+                m_scribbles.push_back(Scribble(QColor(
+                                                    the_palette[m_selectedColorIndex][0],
+                                                    the_palette[m_selectedColorIndex][1],
+                                                    the_palette[m_selectedColorIndex][2]
+                                               )));
                 m_scribbles.back().moveTo(penPosition);
                 m_scribbles.back().lineTo(penPosition, pressureToRadius(1.0));
 
@@ -288,7 +323,11 @@ bool Window::eventFilter(QObject *o, QEvent *e)
             if (te->buttons() & Qt::LeftButton) {
                 const QPoint penPosition = transformPenPosition(te->pos());
 
-                m_scribbles.push_back(Scribble());
+                m_scribbles.push_back(Scribble(QColor(
+                                                    the_palette[m_selectedColorIndex][0],
+                                                    the_palette[m_selectedColorIndex][1],
+                                                    the_palette[m_selectedColorIndex][2]
+                                               )));
                 m_scribbles.back().moveTo(penPosition);
                 m_scribbles.back().lineTo(penPosition, pressureToRadius(te->pressure()));
 

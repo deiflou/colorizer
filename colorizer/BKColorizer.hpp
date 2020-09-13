@@ -153,10 +153,6 @@ public:
 
     void replaceScribble(int index, const ScribbleType &scribble)
     {
-        if (isNull()) {
-            return;
-        }
-        
         removeScribble(index);
         insertScribble(index, scribble);
     }

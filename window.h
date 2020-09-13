@@ -68,6 +68,7 @@ private:
     int m_selectedColorIndex;
     int m_selectedBackgroundColorIndex;
     bool m_useImplicitScribble;
+    bool m_showScribbles;
 
     void setupUI();
 

@@ -7,11 +7,18 @@
 #include <QVector>
 #include <QPoint>
 #include <QRect>
+#include <QColor>
 
 // Quick and dirty scribble implementation
 class Scribble
 {
 public:
+    Scribble(const Scribble &) = default;
+    Scribble(Scribble &&) = default;
+    Scribble& operator=(const Scribble &) = default;
+    Scribble& operator=(Scribble &&) = default;
+    Scribble(const QColor & color);
+
     QVector<QPoint> contourPoints() const;
     bool containsPoint(const QPoint & point) const;
     const QRect& rect() const;
@@ -26,6 +33,7 @@ private:
     QPoint m_position;
     int m_radius;
     QRect m_imageRect;
+    QColor m_color;
     mutable QVector<QPoint> m_cachedContourPoints;
     mutable bool m_cacheIsValid{false};
 
