@@ -179,6 +179,8 @@ void Window::setupUI()
             m_colorizer = ColorizerType(0, 0, m_skeletonImage.width(), m_skeletonImage.height(), kCellSize, imagePoints);
             m_colorizer.updateNeighbors();
 
+            m_scribbles.clear();
+
             m_position = QPointF(0.0, 0.0);
             m_scale = 1.0;
 
