@@ -59,7 +59,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
 
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioning) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
-                workingGrid.visitLeafs(
+                workingGrid.visitLeaves(
                     [&painter, &imagePosition](CellType* cell) -> bool
                     {
                         int c = static_cast<int>(std::log2(cell->size())) * 300 / static_cast<int>(std::log2(kCellSize));
@@ -75,7 +75,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioningScribbles) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
-                workingGrid.visitLeafs(
+                workingGrid.visitLeaves(
                     [&painter, &imagePosition, this](CellType* cell) -> bool
                     {
                         int h, s, v;
@@ -95,7 +95,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioningLabels) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
-                workingGrid.visitLeafs(
+                workingGrid.visitLeaves(
                     [&painter, &imagePosition, this](CellType* cell) -> bool
                     {
                         QBrush b;
@@ -125,7 +125,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
             } else if (m_visualizationMode == VisualizationMode_SpacePartitioningNeighbors) {
                 const GridType &workingGrid = m_colorizer.workingGrid();
 
-                workingGrid.visitLeafs(
+                workingGrid.visitLeaves(
                     [&painter, &imagePosition, this](CellType* cell) -> bool
                     {
                         int v = static_cast<int>(std::log2(cell->size())) * 127 / static_cast<int>(std::log2(kCellSize)) + 128;
@@ -159,7 +159,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
 
                 int alpha = m_showScribbles ? 64 : 255;
 
-                workingGrid.visitLeafs(
+                workingGrid.visitLeaves(
                     [&painter, &imagePosition, alpha, this](CellType* cell) -> bool
                     {
                         if (cell->data().computedLabelId != ColorizerType::LabelId_Undefined &&
@@ -189,7 +189,7 @@ bool Window::eventFilter(QObject *o, QEvent *e)
 
                 int alpha = m_showScribbles ? 64 : 255;
                 
-                workingGrid.visitLeafs(
+                workingGrid.visitLeaves(
                     [&painter, &imagePosition, alpha, this](CellType* cell) -> bool
                     {
                         if (cell->data().computedLabelId != ColorizerType::LabelId_Undefined &&

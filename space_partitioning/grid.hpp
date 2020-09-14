@@ -72,7 +72,7 @@ public:
         Grid newGrid(m_rect, m_cellSize);
 
         // Subdivide (this method ensures that the cells siblings are computed)
-        visitLeafs(
+        visitLeaves(
             [&newGrid](CellType * cell)
             {
                 if (cell->size() == 1)
@@ -209,7 +209,7 @@ public:
     }
 
     template <typename VisitorTypeTP>
-    void visitLeafs(VisitorTypeTP visitor) const
+    void visitLeaves(VisitorTypeTP visitor) const
     {
         visit(
             [visitor](CellType *cell) {
@@ -256,7 +256,7 @@ public:
     }
 
     template <typename VisitorTypeTP>
-    void visitLeafs(const QRect &rect, VisitorTypeTP visitor) const
+    void visitLeaves(const QRect &rect, VisitorTypeTP visitor) const
     {
         visit(
             rect,
@@ -272,14 +272,14 @@ public:
     // Visit all border leaf cells in clockwise direction
     // starting from the top left one
     template <typename VisitorTypeTP>
-    void visitBorderLeafs(VisitorTypeTP visitor) const
+    void visitBorderLeaves(VisitorTypeTP visitor) const
     {
         int index;
 
         // Top cells
         for (int x = 0; x < m_widthInCells; ++x) {
             CellType *topLevelCell = m_cells[x];
-            for (CellType *cell : topLevelCell->topMostLeafs()) {
+            for (CellType *cell : topLevelCell->topMostLeaves()) {
                 if (!visitor(cell)) {
                     return;
                 }
@@ -290,7 +290,7 @@ public:
         index = m_widthInCells - 1;
         {
             CellType *topLevelCell = m_cells[index];
-            QVector<CellType*> borderLeafCells = topLevelCell->rightMostLeafs();
+            QVector<CellType*> borderLeafCells = topLevelCell->rightMostLeaves();
             for (int i = 1; i < borderLeafCells.size(); ++i) {
                 CellType *cell = borderLeafCells[i];
                 if (!visitor(cell)) {
@@ -301,7 +301,7 @@ public:
         }
         for (int y = 1; y < m_heightInCells; ++y, index += m_widthInCells) {
             CellType *topLevelCell = m_cells[index];
-            for (CellType *cell : topLevelCell->rightMostLeafs()) {
+            for (CellType *cell : topLevelCell->rightMostLeaves()) {
                 if (!visitor(cell)) {
                     return;
                 }
@@ -312,7 +312,7 @@ public:
         index = (m_heightInCells - 1) * m_widthInCells + m_widthInCells - 1;
         {
             CellType *topLevelCell = m_cells[index];
-            QVector<CellType*> borderLeafCells = topLevelCell->bottomMostLeafs();
+            QVector<CellType*> borderLeafCells = topLevelCell->bottomMostLeaves();
             for (int i = borderLeafCells.size() - 2; i >= 0; --i) {
                 CellType *cell = borderLeafCells[i];
                 if (!visitor(cell)) {
@@ -323,7 +323,7 @@ public:
         }
         for (int x = m_widthInCells - 2; x >= 0; --x, --index) {
             CellType *topLevelCell = m_cells[index];
-            QVector<CellType*> borderLeafCells = topLevelCell->bottomMostLeafs();
+            QVector<CellType*> borderLeafCells = topLevelCell->bottomMostLeaves();
             for (int i = borderLeafCells.size() - 1; i >= 0; --i) {
                 CellType *cell = borderLeafCells[i];
                 if (!visitor(cell)) {
@@ -336,7 +336,7 @@ public:
         index = (m_heightInCells - 1) * m_widthInCells;
         {
             CellType *topLevelCell = m_cells[index];
-            QVector<CellType*> borderLeafCells = topLevelCell->leftMostLeafs();
+            QVector<CellType*> borderLeafCells = topLevelCell->leftMostLeaves();
             for (int i = borderLeafCells.size() - 2; i >= 0; --i) {
                 CellType *cell = borderLeafCells[i];
                 if (!visitor(cell)) {
@@ -347,7 +347,7 @@ public:
         }
         for (int y = m_heightInCells - 2; y >= 0; --y, index -= m_widthInCells) {
             CellType *topLevelCell = m_cells[index];
-            QVector<CellType*> borderLeafCells = topLevelCell->leftMostLeafs();
+            QVector<CellType*> borderLeafCells = topLevelCell->leftMostLeaves();
             for (int i = borderLeafCells.size() - 1; i >= 0; --i) {
                 CellType *cell = borderLeafCells[i];
                 if (!visitor(cell)) {
@@ -418,7 +418,7 @@ public:
                         isSameLevel = findTopCell(cell, x, y, &sideCell);
                         if (sideCell) {
                             if (isSameLevel) {
-                                cell->setTopLeafNeighbors(sideCell->bottomMostLeafs());
+                                cell->setTopLeafNeighbors(sideCell->bottomMostLeaves());
                             } else {
                                 cell->setTopLeafNeighbors(QVector<CellType*>() << sideCell);
                             }
@@ -427,7 +427,7 @@ public:
                         isSameLevel = findLeftCell(cell, x, y, &sideCell);
                         if (sideCell) {
                             if (isSameLevel) {
-                                cell->setLeftLeafNeighbors(sideCell->rightMostLeafs());
+                                cell->setLeftLeafNeighbors(sideCell->rightMostLeaves());
                             } else {
                                 cell->setLeftLeafNeighbors(QVector<CellType*>() << sideCell);
                             }
@@ -436,7 +436,7 @@ public:
                             isSameLevel = findBottomCell(cell, x, y, &sideCell);
                             if (sideCell) {
                                 if (isSameLevel) {
-                                    cell->setBottomLeafNeighbors(sideCell->topMostLeafs());
+                                    cell->setBottomLeafNeighbors(sideCell->topMostLeaves());
                                 } else {
                                     cell->setBottomLeafNeighbors(QVector<CellType*>() << sideCell);
                                 }
@@ -445,7 +445,7 @@ public:
                             isSameLevel = findRightCell(cell, x, y, &sideCell);
                             if (sideCell) {
                                 if (isSameLevel) {
-                                    cell->setRightLeafNeighbors(sideCell->leftMostLeafs());
+                                    cell->setRightLeafNeighbors(sideCell->leftMostLeaves());
                                 } else {
                                     cell->setRightLeafNeighbors(QVector<CellType*>() << sideCell);
                                 }

@@ -125,52 +125,52 @@ public:
         return m_rightLeafNeighbors;
     }
 
-    QVector<QuadTreeNode*> topMostLeafs() const
+    QVector<QuadTreeNode*> topMostLeaves() const
     {
-        QVector<QuadTreeNode*> leafs;
+        QVector<QuadTreeNode*> leaves;
         if (isSubdivided()) {
-            leafs += topLeftChild()->topMostLeafs();
-            leafs += topRightChild()->topMostLeafs();
+            leaves += topLeftChild()->topMostLeaves();
+            leaves += topRightChild()->topMostLeaves();
         } else {
-            leafs += const_cast<QuadTreeNode*>(this);
+            leaves += const_cast<QuadTreeNode*>(this);
         }
-        return leafs;
+        return leaves;
     }
 
-    QVector<QuadTreeNode*> leftMostLeafs() const
+    QVector<QuadTreeNode*> leftMostLeaves() const
     {
-        QVector<QuadTreeNode*> leafs;
+        QVector<QuadTreeNode*> leaves;
         if (isSubdivided()) {
-            leafs += topLeftChild()->leftMostLeafs();
-            leafs += bottomLeftChild()->leftMostLeafs();
+            leaves += topLeftChild()->leftMostLeaves();
+            leaves += bottomLeftChild()->leftMostLeaves();
         } else {
-            leafs += const_cast<QuadTreeNode*>(this);
+            leaves += const_cast<QuadTreeNode*>(this);
         }
-        return leafs;
+        return leaves;
     }
 
-    QVector<QuadTreeNode*> bottomMostLeafs() const
+    QVector<QuadTreeNode*> bottomMostLeaves() const
     {
-        QVector<QuadTreeNode*> leafs;
+        QVector<QuadTreeNode*> leaves;
         if (isSubdivided()) {
-            leafs += bottomLeftChild()->bottomMostLeafs();
-            leafs += bottomRightChild()->bottomMostLeafs();
+            leaves += bottomLeftChild()->bottomMostLeaves();
+            leaves += bottomRightChild()->bottomMostLeaves();
         } else {
-            leafs += const_cast<QuadTreeNode*>(this);
+            leaves += const_cast<QuadTreeNode*>(this);
         }
-        return leafs;
+        return leaves;
     }
 
-    QVector<QuadTreeNode*> rightMostLeafs() const
+    QVector<QuadTreeNode*> rightMostLeaves() const
     {
-        QVector<QuadTreeNode*> leafs;
+        QVector<QuadTreeNode*> leaves;
         if (isSubdivided()) {
-            leafs += topRightChild()->rightMostLeafs();
-            leafs += bottomRightChild()->rightMostLeafs();
+            leaves += topRightChild()->rightMostLeaves();
+            leaves += bottomRightChild()->rightMostLeaves();
         } else {
-            leafs += const_cast<QuadTreeNode*>(this);
+            leaves += const_cast<QuadTreeNode*>(this);
         }
-        return leafs;
+        return leaves;
     }
 
     const DataType& data() const
