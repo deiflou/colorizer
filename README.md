@@ -1,8 +1,10 @@
 # colorizer
 
-LazyBrush implementation in C++ and Qt that tries to speed up the computations by partitioning the image space with a grid of quadtrees
+LazyBrush implementation in C++. This includes:
+* A generic lazybrush algorithm
+* A colorization context that tries to speed up the computations by partitioning the image space with a grid of quadtrees
 
-## Colorizer app usage
+## Grid of quadtrees colorizer app usage
 
 ### I/O Section
 * **Open Image** button: opens a new image
